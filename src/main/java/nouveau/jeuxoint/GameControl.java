@@ -89,24 +89,27 @@ public class GameControl {
 
     public static List<Map<Point, Boolean>> findLShapedGroup(List<Point> points, int amplitude) {
         List<Map<Point, Boolean>> lShapedGroups = new ArrayList<>();
-        // Consider both horizontal-vertical and vertical-horizontal L shapes
-        int[][][] directions = {
-            {{1, 0}, {0, 1}},  // Horizontal then Vertical
-            {{0, 1}, {1, 0}}   // Vertical then Horizontal
+        
+        // All possible L-shape orientations:
+        // 1. ─┐ (right-up)    2. ─┘ (right-down)
+        // 3. ┌─ (left-up)     4. └─ (left-down)
+        int[][][] orientations = {
+            {{1, 0}, {0, -1}},  // right then up
+            {{1, 0}, {0, 1}},   // right then down
+            {{-1, 0}, {0, -1}}, // left then up
+            {{-1, 0}, {0, 1}}   // left then down
         };
     
         for (Point startPoint : points) {
-            for (int[][] dirPair : directions) {
-                // First direction for the main line
-                int[] mainDir = dirPair[0];
-                // Second direction for the perpendicular line
-                int[] perpDir = dirPair[1];
+            for (int[][] orientation : orientations) {
+                int[] mainDir = orientation[0];  // horizontal direction
+                int[] perpDir = orientation[1];  // vertical direction
     
-                // Try both 3+2 and 4+1 patterns
-                // Pattern 1: 3 points in main direction + 2 points in perpendicular
+                // Try both patterns: 3+2 and 4+1
+                // Pattern 1: 3 horizontal + 2 vertical
                 Map<Point, Boolean> pattern1 = new LinkedHashMap<>();
                 
-                // Add main line points (3 points)
+                // Add horizontal points (3 points)
                 for (int i = 0; i < 3; i++) {
                     Point p = new Point(
                         startPoint.getX() + i * mainDir[0] * amplitude,
@@ -115,28 +118,29 @@ public class GameControl {
                     pattern1.put(p, points.contains(p));
                 }
     
-                // If we have all 3 points in the main line
                 if (pattern1.values().stream().filter(Boolean::booleanValue).count() == 3) {
-                    // Add perpendicular points from the last point of main line
-                    Point lastPoint = new ArrayList<>(pattern1.keySet()).get(2);
+                    // Get the end point of horizontal line
+                    Point endPoint = new ArrayList<>(pattern1.keySet()).get(2);
+                    
+                    // Add vertical points (2 points)
                     for (int i = 1; i <= 2; i++) {
                         Point p = new Point(
-                            lastPoint.getX() + i * perpDir[0] * amplitude,
-                            lastPoint.getY() + i * perpDir[1] * amplitude
+                            endPoint.getX() + perpDir[0] * amplitude,
+                            endPoint.getY() + i * perpDir[1] * amplitude
                         );
                         pattern1.put(p, points.contains(p));
                     }
-                    
-                    // If we found all 5 points
+    
                     if (pattern1.values().stream().filter(Boolean::booleanValue).count() == 5) {
                         lShapedGroups.add(new LinkedHashMap<>(pattern1));
+                        System.out.println("Found horizontal L pattern (3+2): " + pattern1);
                     }
                 }
     
-                // Pattern 2: 4 points in main direction + 1 point in perpendicular
+                // Pattern 2: 4 horizontal + 1 vertical
                 Map<Point, Boolean> pattern2 = new LinkedHashMap<>();
                 
-                // Add main line points (4 points)
+                // Add horizontal points (4 points)
                 for (int i = 0; i < 4; i++) {
                     Point p = new Point(
                         startPoint.getX() + i * mainDir[0] * amplitude,
@@ -145,24 +149,27 @@ public class GameControl {
                     pattern2.put(p, points.contains(p));
                 }
     
-                // If we have all 4 points in the main line
                 if (pattern2.values().stream().filter(Boolean::booleanValue).count() == 4) {
-                    // Add one perpendicular point from the last point of main line
-                    Point lastPoint = new ArrayList<>(pattern2.keySet()).get(3);
+                    // Get the end point of horizontal line
+                    Point endPoint = new ArrayList<>(pattern2.keySet()).get(3);
+                    
+                    // Add one vertical point
                     Point p = new Point(
-                        lastPoint.getX() + perpDir[0] * amplitude,
-                        lastPoint.getY() + perpDir[1] * amplitude
+                        endPoint.getX() + perpDir[0] * amplitude,
+                        endPoint.getY() + perpDir[1] * amplitude
                     );
                     pattern2.put(p, points.contains(p));
-                    
-                    // If we found all 5 points
+    
                     if (pattern2.values().stream().filter(Boolean::booleanValue).count() == 5) {
                         lShapedGroups.add(new LinkedHashMap<>(pattern2));
+                        System.out.println("Found horizontal L pattern (4+1): " + pattern2);
                     }
                 }
             }
         }
+        
         return lShapedGroups;
     }
+    
        
 }
