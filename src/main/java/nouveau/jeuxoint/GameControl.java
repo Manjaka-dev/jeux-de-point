@@ -1,22 +1,23 @@
 package nouveau.jeuxoint;
 
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 public class GameControl {
 
     public static Point setPointCloser(GameState gameState, Point input) {
-        List<Point> points = new ArrayList<>();
+        List<Point> availablePoints = new ArrayList<>();
 
         // Ajouter tous les points non occupés à la liste
-        gameState.getIntersection().forEach((pointt, occupied) -> {
+        gameState.getIntersection().forEach((point, occupied) -> {
             if (!occupied) {
-                points.add(pointt);
+                availablePoints.add(point);
             }
         });
 
-        if (points.isEmpty()) {
+        if (availablePoints.isEmpty()) {
             System.out.println("Aucun point non occupé disponible");
             return null;
         }
@@ -25,7 +26,7 @@ public class GameControl {
         Point closestPoint = null;
         double minDistance = Double.MAX_VALUE;
 
-        for (Point point : points) {
+        for (Point point : availablePoints) {
             double distance = input.calculDistance(point);
             if (distance < minDistance) {
                 minDistance = distance;
@@ -52,14 +53,28 @@ public class GameControl {
         System.out.println("Points du joueur : " + playerPoints);
 
         // Trouver les groupes de points alignés en "L"
-        List<Point> lShapedGroup = findLShapedGroup(playerPoints, amplitude);
+        List<Map<Point, Boolean>> lShapedGroups = findLShapedGroup(playerPoints, amplitude);
 
-        System.out.println("Groupe en 'L' trouvé : " + lShapedGroup);
+        System.out.println("Groupes en 'L' trouvés : " + lShapedGroups);
 
         // Compléter le groupe avec le plus de points déjà posés
-        if (!lShapedGroup.isEmpty()) {
-            for (Point point : lShapedGroup) {
-                if (!gameState.isOccupied(point)) {
+        if (!lShapedGroups.isEmpty()) {
+            // Trouver le groupe avec le plus de points déjà occupés
+            Map<Point, Boolean> bestGroup = lShapedGroups.get(0);
+            int maxOccupiedCount = (int) bestGroup.values().stream().filter(Boolean::booleanValue).count();
+
+            for (Map<Point, Boolean> group : lShapedGroups) {
+                int occupiedCount = (int) group.values().stream().filter(Boolean::booleanValue).count();
+                if (occupiedCount > maxOccupiedCount) {
+                    bestGroup = group;
+                    maxOccupiedCount = occupiedCount;
+                }
+            }
+
+            // Ajouter un point disponible à l'emplacement libre dans le groupe
+            for (Map.Entry<Point, Boolean> entry : bestGroup.entrySet()) {
+                if (!entry.getValue()) { // Si le point n'est pas occupé
+                    Point point = entry.getKey();
                     gameState.setPoint(point);
                     currentPlayer.addToList(point);
                     gameState.switchPlayer();
@@ -72,106 +87,82 @@ public class GameControl {
         }
     }
 
-    private static List<Point> findLShapedGroup(List<Point> points, int amplitude) {
-        List<Point> lShapedPoints = new ArrayList<>();
-
-        // Vérifier les formes en "L" avec 4 points alignés et un point adjacent
-        int[][] directions = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+    public static List<Map<Point, Boolean>> findLShapedGroup(List<Point> points, int amplitude) {
+        List<Map<Point, Boolean>> lShapedGroups = new ArrayList<>();
+        // Consider both horizontal-vertical and vertical-horizontal L shapes
+        int[][][] directions = {
+            {{1, 0}, {0, 1}},  // Horizontal then Vertical
+            {{0, 1}, {1, 0}}   // Vertical then Horizontal
+        };
+    
         for (Point startPoint : points) {
-            for (int[] dir : directions) {
-                List<Point> tempPoints = new ArrayList<>();
-                for (int i = 0; i < 4; i++) {
-                    Point currentPoint = new Point(startPoint.getX() + i * dir[0] * amplitude, startPoint.getY() + i * dir[1] * amplitude);
-                    if (points.contains(currentPoint)) {
-                        tempPoints.add(currentPoint);
-                    } else {
-                        break;
-                    }
-                }
-                if (tempPoints.size() == 4) {
-                    // Ajouter le point adjacent pour former un "L"
-                    Point adjacentPoint1 = new Point(tempPoints.get(3).getX() + dir[1] * amplitude, tempPoints.get(3).getY() + dir[0] * amplitude);
-                    Point adjacentPoint2 = new Point(tempPoints.get(3).getX() - dir[1] * amplitude, tempPoints.get(3).getY() - dir[0] * amplitude);
-                    if (!points.contains(adjacentPoint1)) {
-                        lShapedPoints.add(adjacentPoint1);
-                    }
-                    if (!points.contains(adjacentPoint2)) {
-                        lShapedPoints.add(adjacentPoint2);
-                    }
-                }
-            }
-        }
-
-        // Vérifier les formes en "L" avec 3 points alignés et deux points adjacents
-        for (Point startPoint : points) {
-            for (int[] dir : directions) {
-                List<Point> tempPoints = new ArrayList<>();
+            for (int[][] dirPair : directions) {
+                // First direction for the main line
+                int[] mainDir = dirPair[0];
+                // Second direction for the perpendicular line
+                int[] perpDir = dirPair[1];
+    
+                // Try both 3+2 and 4+1 patterns
+                // Pattern 1: 3 points in main direction + 2 points in perpendicular
+                Map<Point, Boolean> pattern1 = new LinkedHashMap<>();
+                
+                // Add main line points (3 points)
                 for (int i = 0; i < 3; i++) {
-                    Point currentPoint = new Point(startPoint.getX() + i * dir[0] * amplitude, startPoint.getY() + i * dir[1] * amplitude);
-                    if (points.contains(currentPoint)) {
-                        tempPoints.add(currentPoint);
-                    } else {
-                        break;
+                    Point p = new Point(
+                        startPoint.getX() + i * mainDir[0] * amplitude,
+                        startPoint.getY() + i * mainDir[1] * amplitude
+                    );
+                    pattern1.put(p, points.contains(p));
+                }
+    
+                // If we have all 3 points in the main line
+                if (pattern1.values().stream().filter(Boolean::booleanValue).count() == 3) {
+                    // Add perpendicular points from the last point of main line
+                    Point lastPoint = new ArrayList<>(pattern1.keySet()).get(2);
+                    for (int i = 1; i <= 2; i++) {
+                        Point p = new Point(
+                            lastPoint.getX() + i * perpDir[0] * amplitude,
+                            lastPoint.getY() + i * perpDir[1] * amplitude
+                        );
+                        pattern1.put(p, points.contains(p));
+                    }
+                    
+                    // If we found all 5 points
+                    if (pattern1.values().stream().filter(Boolean::booleanValue).count() == 5) {
+                        lShapedGroups.add(new LinkedHashMap<>(pattern1));
                     }
                 }
-                if (tempPoints.size() == 3) {
-                    // Ajouter les deux points adjacents pour former un "L"
-                    Point adjacentPoint1 = new Point(tempPoints.get(2).getX() + dir[1] * amplitude, tempPoints.get(2).getY() + dir[0] * amplitude);
-                    Point adjacentPoint2 = new Point(tempPoints.get(2).getX() - dir[1] * amplitude, tempPoints.get(2).getY() - dir[0] * amplitude);
-                    if (!points.contains(adjacentPoint1)) {
-                        lShapedPoints.add(adjacentPoint1);
-                    }
-                    if (!points.contains(adjacentPoint2)) {
-                        lShapedPoints.add(adjacentPoint2);
+    
+                // Pattern 2: 4 points in main direction + 1 point in perpendicular
+                Map<Point, Boolean> pattern2 = new LinkedHashMap<>();
+                
+                // Add main line points (4 points)
+                for (int i = 0; i < 4; i++) {
+                    Point p = new Point(
+                        startPoint.getX() + i * mainDir[0] * amplitude,
+                        startPoint.getY() + i * mainDir[1] * amplitude
+                    );
+                    pattern2.put(p, points.contains(p));
+                }
+    
+                // If we have all 4 points in the main line
+                if (pattern2.values().stream().filter(Boolean::booleanValue).count() == 4) {
+                    // Add one perpendicular point from the last point of main line
+                    Point lastPoint = new ArrayList<>(pattern2.keySet()).get(3);
+                    Point p = new Point(
+                        lastPoint.getX() + perpDir[0] * amplitude,
+                        lastPoint.getY() + perpDir[1] * amplitude
+                    );
+                    pattern2.put(p, points.contains(p));
+                    
+                    // If we found all 5 points
+                    if (pattern2.values().stream().filter(Boolean::booleanValue).count() == 5) {
+                        lShapedGroups.add(new LinkedHashMap<>(pattern2));
                     }
                 }
             }
         }
-        return lShapedPoints;
+        return lShapedGroups;
     }
-
-    public static List<List<Point>> groupAlignedPoints(List<Point> points, int amplitude, int number) {
-        List<List<Point>> alignedGroups = new ArrayList<>();
-
-        for (Point p : points) {
-            // Vérifier l'alignement horizontal
-            List<Point> horizontalGroup = checkAlignment(points, p, amplitude, 0, number);
-            if (horizontalGroup.size() == number) {
-                alignedGroups.add(horizontalGroup);
-            }
-
-            // Vérifier l'alignement vertical
-            List<Point> verticalGroup = checkAlignment(points, p, 0, amplitude, number);
-            if (verticalGroup.size() == number) {
-                alignedGroups.add(verticalGroup);
-            }
-
-            // Vérifier l'alignement diagonal (\)
-            List<Point> diagonalGroup1 = checkAlignment(points, p, amplitude, amplitude, number);
-            if (diagonalGroup1.size() == number) {
-                alignedGroups.add(diagonalGroup1);
-            }
-
-            // Vérifier l'alignement diagonal (/)
-            List<Point> diagonalGroup2 = checkAlignment(points, p, amplitude, -amplitude, number);
-            if (diagonalGroup2.size() == number) {
-                alignedGroups.add(diagonalGroup2);
-            }
-        }
-
-        return alignedGroups;
-    }
-
-    private static List<Point> checkAlignment(List<Point> points, Point start, int dx, int dy, int required) {
-        List<Point> alignedPoints = new ArrayList<>();
-        for (int i = 0; i < required; i++) {
-            Point current = new Point(start.getX() + i * dx, start.getY() + i * dy);
-            if (points.contains(current)) {
-                alignedPoints.add(current);
-            } else {
-                break;
-            }
-        }
-        return alignedPoints;
-    }
+       
 }

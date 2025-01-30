@@ -3,6 +3,8 @@ package nouveau.jeuxoint;
 import java.io.*;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+
 import javafx.fxml.FXML;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
@@ -55,7 +57,7 @@ public class PrimaryController {
 
             for (double x = 0; x <= width; x += cellSize) {
                 for (double y = 0; y <= height; y += cellSize) {
-                    gameState.addIntersection(new Point((int)x, (int)y));
+                    gameState.addIntersection(new Point((int) x, (int) y));
                 }
             }
         } else {
@@ -66,7 +68,7 @@ public class PrimaryController {
     private void handleCanvasClick(MouseEvent event) {
         double x = event.getX();
         double y = event.getY();
-        Point inputPoint = new Point((int)x, (int)y);
+        Point inputPoint = new Point((int) x, (int) y);
         Point closestPoint = GameControl.setPointCloser(gameState, inputPoint);
         if (closestPoint != null) {
             Player currentPlayer = gameState.getCurrentPlayer();
@@ -102,21 +104,44 @@ public class PrimaryController {
     private void drawAlignedLines() {
         GraphicsContext gc = gameCanvas.getGraphicsContext2D();
         gc.setLineWidth(2);
-
+    
         for (Player player : gameState.getPlayers()) {
-            List<List<Point>> groupedPoints = GameControl.groupAlignedPoints(player.getPoints(), ((int)cellSize) , 5);
-            for (List<Point> group : groupedPoints) {
-                if (group.size() == 5) {
-                    for (int i = 0; i < group.size() - 1; i++) {
-                        Point p1 = group.get(i);
-                        Point p2 = group.get(i + 1);
-                        gc.setStroke(player.getColor());
-                        gc.strokeLine(p1.getX(), p1.getY(), p2.getX(), p2.getY());
+            List<Point> playerPoints = player.getPoints();
+            List<Map<Point, Boolean>> lShapedGroups = GameControl.findLShapedGroup(playerPoints, ((int) cellSize));
+    
+            for (Map<Point, Boolean> map : lShapedGroups) {
+                boolean allTrue = map.values().stream().filter(Boolean::booleanValue).count() == 5;
+                if (allTrue) {
+                    System.out.println("Groupe en 'L' trouvé avec 5 points : " + map);
+                    List<Point> points = new ArrayList<>(map.keySet());
+    
+                    // Dessiner les lignes pour connecter les points en "L"
+                    for (int i = 0; i < points.size(); i++) {
+                        Point p1 = points.get(i);
+                        if (!map.get(p1)) continue; // Ignorer les points en false
+    
+                        for (int j = i + 1; j < points.size(); j++) {
+                            Point p2 = points.get(j);
+                            if (!map.get(p2)) continue; // Ignorer les points en false
+    
+                            // Vérifier si les deux points sont alignés ou adjacents
+                            boolean aligned = (p1.getX() == p2.getX() && Math.abs(p1.getY() - p2.getY()) == cellSize) ||
+                                             (p1.getY() == p2.getY() && Math.abs(p1.getX() - p2.getX()) == cellSize);
+                            boolean adjacent = (Math.abs(p1.getX() - p2.getX()) == cellSize && Math.abs(p1.getY() - p2.getY()) == 0) ||
+                                               (Math.abs(p1.getY() - p2.getY()) == cellSize && Math.abs(p1.getX() - p2.getX()) == 0);
+    
+                            if (aligned || adjacent) {
+                                gc.setStroke(player.getColor());
+                                gc.strokeLine(p1.getX(), p1.getY(), p2.getX(), p2.getY());
+                                System.out.println("Ligne dessinée entre " + p1 + " et " + p2);
+                            }
+                        }
                     }
                 }
             }
         }
     }
+    
 
     @FXML
     private void switchToSecondary() throws IOException {
