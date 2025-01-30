@@ -51,47 +51,15 @@ public class GameControl {
         System.out.println("Début de la suggestion pour le joueur : " + currentPlayer.getName());
         System.out.println("Points du joueur : " + playerPoints);
 
-        // Directions possibles pour les alignements
-        int[][] directions = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+        // Trouver les groupes de points alignés en "L"
+        List<Point> lShapedGroup = findLShapedGroup(playerPoints, amplitude);
 
-        // Créer une liste de HashMap pour les groupes de 5 points alignés
-        List<HashMap<Point, Boolean>> alignmentMaps = new ArrayList<>();
-
-        for (Point startPoint : playerPoints) {
-            for (int[] dir : directions) {
-                HashMap<Point, Boolean> map = new HashMap<>();
-                for (int i = 0; i < 5; i++) {
-                    Point currentPoint = new Point(startPoint.getX() + i * dir[0] * amplitude, startPoint.getY() + i * dir[1] * amplitude);
-                    map.put(currentPoint, gameState.isOccupied(currentPoint));
-                }
-                alignmentMaps.add(map);
-            }
-        }
-
-        System.out.println("Cartes d'alignement créées : " + alignmentMaps.size());
-
-        // Trouver le groupe avec le plus de points déjà posés
-        HashMap<Point, Boolean> bestGroup = null;
-        int maxCount = 0;
-        for (HashMap<Point, Boolean> map : alignmentMaps) {
-            int count = 0;
-            for (Boolean occupied : map.values()) {
-                if (occupied) {
-                    count++;
-                }
-            }
-            if (count > maxCount) {
-                maxCount = count;
-                bestGroup = map;
-            }
-        }
-
-        System.out.println("Meilleur groupe trouvé avec " + maxCount + " points alignés.");
+        System.out.println("Groupe en 'L' trouvé : " + lShapedGroup);
 
         // Compléter le groupe avec le plus de points déjà posés
-        if (bestGroup != null) {
-            for (Point point : bestGroup.keySet()) {
-                if (!bestGroup.get(point)) {
+        if (!lShapedGroup.isEmpty()) {
+            for (Point point : lShapedGroup) {
+                if (!gameState.isOccupied(point)) {
                     gameState.setPoint(point);
                     currentPlayer.addToList(point);
                     gameState.switchPlayer();
@@ -104,128 +72,106 @@ public class GameControl {
         }
     }
 
-    public static boolean areNPointsAligned(List<Point> points, int amplitude, int number) {
-        // Parcourir tous les points
-        for (Point p : points) {
-            // Vérifier l'alignement horizontal
-            if (checkAlignment(points, p, amplitude, 0, number)) {
-                return true;
-            }
-            // Vérifier l'alignement vertical
-            if (checkAlignment(points, p, 0, amplitude, number)) {
-                return true;
-            }
-            // Vérifier l'alignement diagonal (\)
-            if (checkAlignment(points, p, amplitude, amplitude, number)) {
-                return true;
-            }
-            // Vérifier l'alignement diagonal (/)
-            if (checkAlignment(points, p, amplitude, -amplitude, number)) {
-                return true;
-            }
-        }
-        return false; // Aucun alignement trouvé
-    }
+    private static List<Point> findLShapedGroup(List<Point> points, int amplitude) {
+        List<Point> lShapedPoints = new ArrayList<>();
 
-    public static boolean checkAlignment(List<Point> points, Point start, int dx, int dy, int required) {
-        int count = 0;
-
-        for (int i = 0; i < required; i++) {
-            Point current = new Point(start.getX() + i * dx, start.getY() + i * dy);
-            if (points.contains(current)) {
-                count++;
-            } else {
-                break; // Arrêter si un point manque
-            }
-        }
-        return count == required; // Vérifier si on a trouvé le nombre requis de points alignés
-    }
-
-    public static List<Point> getAlignedPoints(List<Point> points, int amplitude, int number) {
-        // Parcourir tous les points
+        // Vérifier les formes en "L" avec 4 points alignés et un point adjacent
+        int[][] directions = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
         for (Point startPoint : points) {
-            // Vérifier l'alignement horizontal
-            if (checkAlignment(points, startPoint, amplitude, 0, number)) {
-                return collectAlignedPoints(points, startPoint, amplitude, 0, number);
-            }
-            // Vérifier l'alignement vertical
-            if (checkAlignment(points, startPoint, 0, amplitude, number)) {
-                return collectAlignedPoints(points, startPoint, 0, amplitude, number);
-            }
-            // Vérifier l'alignement diagonal (\)
-            if (checkAlignment(points, startPoint, amplitude, amplitude, number)) {
-                return collectAlignedPoints(points, startPoint, amplitude, amplitude, number);
-            }
-            // Vérifier l'alignement diagonal (/)
-            if (checkAlignment(points, startPoint, amplitude, -amplitude, number)) {
-                return collectAlignedPoints(points, startPoint, amplitude, -amplitude, number);
-            }
-        }
-        // Aucun alignement trouvé
-        return new ArrayList<>();
-    }
-
-    private static List<Point> collectAlignedPoints(List<Point> points, Point startPoint, int dx, int dy, int number) {
-        List<Point> alignedPoints = new ArrayList<>();
-        int count = 0;
-
-        for (int i = 0; i < number; i++) {
-            Point currentPoint = new Point(startPoint.getX() + i * dx, startPoint.getY() + i * dy);
-            if (points.contains(currentPoint)) {
-                alignedPoints.add(currentPoint);
-                count++;
-            } else {
-                break; // Interruption si un point manque
+            for (int[] dir : directions) {
+                List<Point> tempPoints = new ArrayList<>();
+                for (int i = 0; i < 4; i++) {
+                    Point currentPoint = new Point(startPoint.getX() + i * dir[0] * amplitude, startPoint.getY() + i * dir[1] * amplitude);
+                    if (points.contains(currentPoint)) {
+                        tempPoints.add(currentPoint);
+                    } else {
+                        break;
+                    }
+                }
+                if (tempPoints.size() == 4) {
+                    // Ajouter le point adjacent pour former un "L"
+                    Point adjacentPoint1 = new Point(tempPoints.get(3).getX() + dir[1] * amplitude, tempPoints.get(3).getY() + dir[0] * amplitude);
+                    Point adjacentPoint2 = new Point(tempPoints.get(3).getX() - dir[1] * amplitude, tempPoints.get(3).getY() - dir[0] * amplitude);
+                    if (!points.contains(adjacentPoint1)) {
+                        lShapedPoints.add(adjacentPoint1);
+                    }
+                    if (!points.contains(adjacentPoint2)) {
+                        lShapedPoints.add(adjacentPoint2);
+                    }
+                }
             }
         }
 
-        // Vérifier que le nombre total correspond bien à `number`
-        if (count == number) {
-            return alignedPoints;
-        } else {
-            return new ArrayList<>(); // Retourne une liste vide si pas d'alignement complet
+        // Vérifier les formes en "L" avec 3 points alignés et deux points adjacents
+        for (Point startPoint : points) {
+            for (int[] dir : directions) {
+                List<Point> tempPoints = new ArrayList<>();
+                for (int i = 0; i < 3; i++) {
+                    Point currentPoint = new Point(startPoint.getX() + i * dir[0] * amplitude, startPoint.getY() + i * dir[1] * amplitude);
+                    if (points.contains(currentPoint)) {
+                        tempPoints.add(currentPoint);
+                    } else {
+                        break;
+                    }
+                }
+                if (tempPoints.size() == 3) {
+                    // Ajouter les deux points adjacents pour former un "L"
+                    Point adjacentPoint1 = new Point(tempPoints.get(2).getX() + dir[1] * amplitude, tempPoints.get(2).getY() + dir[0] * amplitude);
+                    Point adjacentPoint2 = new Point(tempPoints.get(2).getX() - dir[1] * amplitude, tempPoints.get(2).getY() - dir[0] * amplitude);
+                    if (!points.contains(adjacentPoint1)) {
+                        lShapedPoints.add(adjacentPoint1);
+                    }
+                    if (!points.contains(adjacentPoint2)) {
+                        lShapedPoints.add(adjacentPoint2);
+                    }
+                }
+            }
         }
+        return lShapedPoints;
     }
 
     public static List<List<Point>> groupAlignedPoints(List<Point> points, int amplitude, int number) {
-        List<List<Point>> groupedAlignedPoints = new ArrayList<>();
-        List<Point> visitedPoints = new ArrayList<>();
+        List<List<Point>> alignedGroups = new ArrayList<>();
 
-        // Parcourir tous les points
-        for (Point startPoint : points) {
-            if (visitedPoints.contains(startPoint)) {
-                continue; // Ignorer les points déjà traités
-            }
-    
+        for (Point p : points) {
             // Vérifier l'alignement horizontal
-            List<Point> horizontalGroup = collectAlignedPoints(points, startPoint, amplitude, 0, number);
-            if (!horizontalGroup.isEmpty()) {
-                groupedAlignedPoints.add(horizontalGroup);
-                visitedPoints.addAll(horizontalGroup);
+            List<Point> horizontalGroup = checkAlignment(points, p, amplitude, 0, number);
+            if (horizontalGroup.size() == number) {
+                alignedGroups.add(horizontalGroup);
             }
-    
+
             // Vérifier l'alignement vertical
-            List<Point> verticalGroup = collectAlignedPoints(points, startPoint, 0, amplitude, number);
-            if (!verticalGroup.isEmpty()) {
-                groupedAlignedPoints.add(verticalGroup);
-                visitedPoints.addAll(verticalGroup);
+            List<Point> verticalGroup = checkAlignment(points, p, 0, amplitude, number);
+            if (verticalGroup.size() == number) {
+                alignedGroups.add(verticalGroup);
             }
-    
+
             // Vérifier l'alignement diagonal (\)
-            List<Point> diagonalGroup1 = collectAlignedPoints(points, startPoint, amplitude, amplitude, number);
-            if (!diagonalGroup1.isEmpty()) {
-                groupedAlignedPoints.add(diagonalGroup1);
-                visitedPoints.addAll(diagonalGroup1);
+            List<Point> diagonalGroup1 = checkAlignment(points, p, amplitude, amplitude, number);
+            if (diagonalGroup1.size() == number) {
+                alignedGroups.add(diagonalGroup1);
             }
-    
+
             // Vérifier l'alignement diagonal (/)
-            List<Point> diagonalGroup2 = collectAlignedPoints(points, startPoint, amplitude, -amplitude, number);
-            if (!diagonalGroup2.isEmpty()) {
-                groupedAlignedPoints.add(diagonalGroup2);
-                visitedPoints.addAll(diagonalGroup2);
+            List<Point> diagonalGroup2 = checkAlignment(points, p, amplitude, -amplitude, number);
+            if (diagonalGroup2.size() == number) {
+                alignedGroups.add(diagonalGroup2);
             }
         }
-    
-        return groupedAlignedPoints;
+
+        return alignedGroups;
+    }
+
+    private static List<Point> checkAlignment(List<Point> points, Point start, int dx, int dy, int required) {
+        List<Point> alignedPoints = new ArrayList<>();
+        for (int i = 0; i < required; i++) {
+            Point current = new Point(start.getX() + i * dx, start.getY() + i * dy);
+            if (points.contains(current)) {
+                alignedPoints.add(current);
+            } else {
+                break;
+            }
+        }
+        return alignedPoints;
     }
 }
