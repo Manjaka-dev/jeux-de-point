@@ -72,13 +72,13 @@ public class PrimaryController {
             Player currentPlayer = gameState.getCurrentPlayer();
             if (currentPlayer.getPoints().contains(closestPoint)) {
                 drawPoint(closestPoint, currentPlayer.getColor());
-                drawAlignedLines();
                 gameState.switchPlayer();
                 updateSuggestionButtonColor();
             }
         }
         // Redessiner tous les points du joueur actuel
         drawAllPoints();
+        drawAlignedLines(); // Assurez-vous que cette ligne est présente pour dessiner les lignes alignées
     }
 
     private void drawPoint(Point point, Color color) {
@@ -110,7 +110,7 @@ public class PrimaryController {
                     for (int i = 0; i < group.size() - 1; i++) {
                         Point p1 = group.get(i);
                         Point p2 = group.get(i + 1);
-                        gc.setStroke(gameState.getCurrentPlayer().getColor());
+                        gc.setStroke(player.getColor());
                         gc.strokeLine(p1.getX(), p1.getY(), p2.getX(), p2.getY());
                     }
                 }
@@ -126,6 +126,7 @@ public class PrimaryController {
     @FXML
     private void handleSuggestion() {
         // Logique pour le bouton Suggestion
+        System.out.println("Bouton Suggestion cliqué");
         GameControl.suggestion(gameState);
 
         // Redessiner la grille et les points après la suggestion

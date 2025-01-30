@@ -38,15 +38,70 @@ public class GameControl {
         if (closestPoint != null && gameState.getIntersection().containsKey(closestPoint) && minDistance <= 10) {
             gameState.setPoint(closestPoint);
             currentPlayer.addToList(closestPoint);
-            System.out.println("Point le plus proche: " + closestPoint);
-            if (currentPlayer.getPoints().size() > gameState.getMaxPoint()) {
-                Point firstPoint = currentPlayer.getPoints().get(0);
-                currentPlayer.getPoints().remove(0);
-                gameState.getIntersection().put(firstPoint, false);
-            }
             return closestPoint;
         }
         return null;
+    }
+
+    public static void suggestion(GameState gameState) {
+        Player currentPlayer = gameState.getCurrentPlayer();
+        List<Point> playerPoints = currentPlayer.getPoints();
+        int amplitude = 40; // Taille de chaque cellule de la grille
+
+        System.out.println("Début de la suggestion pour le joueur : " + currentPlayer.getName());
+        System.out.println("Points du joueur : " + playerPoints);
+
+        // Directions possibles pour les alignements
+        int[][] directions = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
+
+        // Créer une liste de HashMap pour les groupes de 5 points alignés
+        List<HashMap<Point, Boolean>> alignmentMaps = new ArrayList<>();
+
+        for (Point startPoint : playerPoints) {
+            for (int[] dir : directions) {
+                HashMap<Point, Boolean> map = new HashMap<>();
+                for (int i = 0; i < 5; i++) {
+                    Point currentPoint = new Point(startPoint.getX() + i * dir[0] * amplitude, startPoint.getY() + i * dir[1] * amplitude);
+                    map.put(currentPoint, gameState.isOccupied(currentPoint));
+                }
+                alignmentMaps.add(map);
+            }
+        }
+
+        System.out.println("Cartes d'alignement créées : " + alignmentMaps.size());
+
+        // Trouver le groupe avec le plus de points déjà posés
+        HashMap<Point, Boolean> bestGroup = null;
+        int maxCount = 0;
+        for (HashMap<Point, Boolean> map : alignmentMaps) {
+            int count = 0;
+            for (Boolean occupied : map.values()) {
+                if (occupied) {
+                    count++;
+                }
+            }
+            if (count > maxCount) {
+                maxCount = count;
+                bestGroup = map;
+            }
+        }
+
+        System.out.println("Meilleur groupe trouvé avec " + maxCount + " points alignés.");
+
+        // Compléter le groupe avec le plus de points déjà posés
+        if (bestGroup != null) {
+            for (Point point : bestGroup.keySet()) {
+                if (!bestGroup.get(point)) {
+                    gameState.setPoint(point);
+                    currentPlayer.addToList(point);
+                    gameState.switchPlayer();
+                    System.out.println("Suggestion: Point ajouté : " + point);
+                    return;
+                }
+            }
+        } else {
+            System.out.println("Aucun groupe trouvé pour la suggestion.");
+        }
     }
 
     public static boolean areNPointsAligned(List<Point> points, int amplitude, int number) {
@@ -172,61 +227,5 @@ public class GameControl {
         }
     
         return groupedAlignedPoints;
-    }
-
-    public static void suggestion(GameState gameState) {
-        Player currentPlayer = gameState.getCurrentPlayer();
-        List<Point> playerPoints = currentPlayer.getPoints();
-        int amplitude = 40; // Taille de chaque cellule de la grille
-
-        // Directions possibles pour les alignements
-        int[][] directions = {{1, 0}, {0, 1}, {1, 1}, {1, -1}};
-
-        // Créer une liste de HashMap pour les groupes de 5 points alignés
-        List<HashMap<Point, Boolean>> alignmentMaps = new ArrayList<>();
-
-        for (Point startPoint : playerPoints) {
-            for (int[] dir : directions) {
-                HashMap<Point, Boolean> map = new HashMap<>();
-                for (int i = 0; i < 5; i++) {
-                    Point currentPoint = new Point(startPoint.getX() + i * dir[0] * amplitude, startPoint.getY() + i * dir[1] * amplitude);
-                    map.put(currentPoint, gameState.isOccupied(currentPoint));
-                    if (dir[0]==1 && dir[1]==0) {
-                        System.out.println("Horizontal: " + currentPoint + " | Occupied: " + gameState.isOccupied(currentPoint));
-                    }
-                }
-                alignmentMaps.add(map);
-            }
-        }
-
-        // Trouver le groupe avec le plus de points déjà posés
-        HashMap<Point, Boolean> bestGroup = null;
-        int maxCount = 0;
-        for (HashMap<Point, Boolean> map : alignmentMaps) {
-            int count = 0;
-            for (Boolean occupied : map.values()) {
-                if (occupied) {
-                    count++;
-                }
-            }
-            if (count > maxCount) {
-                maxCount = count;
-                bestGroup = map;
-            }
-        }
-
-        // Compléter le groupe avec le plus de points déjà posés
-        if (bestGroup != null) {
-            for (Point point : bestGroup.keySet()) {
-                if (!bestGroup.get(point)) {
-                    gameState.setPoint(point);
-                    currentPlayer.addToList(point);
-                    gameState.switchPlayer();
-
-                    System.out.println(gameState.isOccupied(point));
-                    return;
-                }
-            }
-        }
     }
 }

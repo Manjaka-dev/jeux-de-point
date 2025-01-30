@@ -28,7 +28,8 @@ public class GameState implements Serializable {
     }
 
     public boolean isOccupied(Point point) {
-        return intersection.get(point);
+        Boolean occupied = intersection.get(point);
+        return occupied != null && occupied;
     }
 
     public void clear() {
@@ -41,6 +42,7 @@ public class GameState implements Serializable {
 
     public void switchPlayer() {
         turn = (turn + 1) % players.size();
+        System.out.println("Changement de joueur : " + getCurrentPlayer().getName());
     }
 
     public HashMap<Point, Boolean> getIntersection() {
@@ -56,7 +58,7 @@ public class GameState implements Serializable {
 
     public void setPoint(Point point) {
         intersection.put(point, true);
-        System.out.println("Point ajouté : " + point + " | Occupied: " + isOccupied(point));
+        System.out.println("Point occupé par " + getCurrentPlayer().getName()+" : "+point);
     }
 
     public void setPlayers(List<Player> players) {
@@ -65,34 +67,5 @@ public class GameState implements Serializable {
 
     public List<Player> getPlayers() {
         return players;
-    }
-    
-    @Override
-    public String toString() {
-        return "GameState [intersection=" + intersection + ", players=" + players + ", turn=" + turn + "]";
-    }
-
-    public static long getSerialversionuid() {
-        return serialVersionUID;
-    }
-
-    public void setIntersection(HashMap<Point, Boolean> intersection) {
-        this.intersection = intersection;
-    }
-
-    public void setTurn(int turn) {
-        this.turn = turn;
-    }
-
-    public int getMaxPoint() {
-        return maxPoint;
-    }
-
-    public void setMaxPoint(int maxPoint) {
-        if (maxPoint > 0) {
-            this.maxPoint = maxPoint;
-        } else {
-            throw new IllegalArgumentException("maxPoint must be greater than 0");
-        }
     }
 }
