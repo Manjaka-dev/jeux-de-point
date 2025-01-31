@@ -100,7 +100,6 @@ public class GameControl {
                     trueCount = (int) pattern1.values().stream().filter(Boolean::booleanValue).count();
                     if (trueCount >= 4) {
                         lShapedGroups.add(new LinkedHashMap<>(pattern1));
-                        System.out.println("Found pattern (3+2): " + pattern1);
                     }
                 }
 
@@ -131,7 +130,6 @@ public class GameControl {
                     trueCount = (int) pattern2.values().stream().filter(Boolean::booleanValue).count();
                     if (trueCount >= 4) {
                         lShapedGroups.add(new LinkedHashMap<>(pattern2));
-                        System.out.println("Found pattern (4+1): " + pattern2);
                     }
                 }
             }
@@ -147,19 +145,10 @@ public class GameControl {
     
         System.out.println("\n=== DÉBUT SUGGESTION ===");
         System.out.println("Joueur actuel: " + currentPlayer.getName());
-        System.out.println("Points du joueur: " + playerPoints);
     
-        // Get potential L-shaped groups for current player
         List<Map<Point, Boolean>> potentialGroups = findLShapedGroup(playerPoints, amplitude);
-        System.out.println("Nombre de groupes potentiels trouvés: " + potentialGroups.size());
-    
-        // First priority: Complete own L-shape if possible
         for (Map<Point, Boolean> group : potentialGroups) {
-            System.out.println("\nAnalyse d'un groupe: " + group);
-            long trueCount = group.values().stream().filter(Boolean::booleanValue).count();
-            System.out.println("Nombre de points true dans le groupe: " + trueCount);
-    
-            if (trueCount == 4) {
+            if (group.values().stream().filter(Boolean::booleanValue).count() == 4) {
                 Point pointToAdd = findAvailablePoint(group, gameState);
                 if (pointToAdd != null) {
                     makeMove(gameState, currentPlayer, pointToAdd);
@@ -168,13 +157,10 @@ public class GameControl {
             }
         }
     
-        // Second priority: Block opponent's L-shape
-        List<Map<Point, Boolean>> opponentPotentialGroups = findLShapedGroup(
+        List<Map<Point, Boolean>> opponentGroups = findLShapedGroup(
                 gameState.getNonCurrentPlayer().getPoints(), amplitude);
-        
-        for (Map<Point, Boolean> group : opponentPotentialGroups) {
-            long trueCount = group.values().stream().filter(Boolean::booleanValue).count();
-            if (trueCount == 4) {
+        for (Map<Point, Boolean> group : opponentGroups) {
+            if (group.values().stream().filter(Boolean::booleanValue).count() == 4) {
                 Point pointToAdd = findAvailablePoint(group, gameState);
                 if (pointToAdd != null) {
                     makeMove(gameState, currentPlayer, pointToAdd);
@@ -183,40 +169,45 @@ public class GameControl {
             }
         }
     
-        // Last resort: place adjacent to existing point
-        if (!playerPoints.isEmpty()) {
-            for (Point existingPoint : playerPoints) {
-                int[][] directions = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
-                for (int[] dir : directions) {
-                    Point adjacent = new Point(
-                        existingPoint.getX() + dir[0] * amplitude,
-                        existingPoint.getY() + dir[1] * amplitude
-                    );
-                    if (gameState.getIntersection().containsKey(adjacent) &&
-                        !gameState.isOccupied(adjacent)) {
-                        System.out.println("Placement adjacent au point: " + existingPoint);
-                        System.out.println("Point placé: " + adjacent);
-                        makeMove(gameState, currentPlayer, adjacent);
-                        return;
-                    }
+        for (Map<Point, Boolean> group : potentialGroups) {
+            if (group.values().stream().filter(Boolean::booleanValue).count() == 3) {
+                Point pointToAdd = findAvailablePoint(group, gameState);
+                if (pointToAdd != null) {
+                    makeMove(gameState, currentPlayer, pointToAdd);
+                    return;
+                }
+            }
+        }
+    
+        for (Point existingPoint : playerPoints) {
+            int[][] directions = {{0, 40}, {40, 0}, {0, -40}, {-40, 0}}; // Vérifie en haut, bas, gauche, droite
+            for (int[] dir : directions) {
+                Point adjacent = new Point(
+                    existingPoint.getX() + dir[0],
+                    existingPoint.getY() + dir[1]
+                );
+                if (gameState.getIntersection().containsKey(adjacent) &&
+                    !gameState.isOccupied(adjacent)) {
+                    System.out.println("Point adjacent trouvé: " + adjacent);
+                    makeMove(gameState, currentPlayer, adjacent);
+                    return;
                 }
             }
         }
     
         System.out.println("Aucune suggestion possible");
-        System.out.println("=== FIN SUGGESTION ===\n");
     }
     
+
     private static Point findAvailablePoint(Map<Point, Boolean> group, GameState gameState) {
         for (Map.Entry<Point, Boolean> entry : group.entrySet()) {
             if (!entry.getValue()) {
                 Point pointToAdd = entry.getKey();
                 System.out.println("Point trouvé à ajouter: " + pointToAdd);
-    
-                if (!gameState.isOccupied(pointToAdd) && 
-                    !gameState.getCurrentPlayer().getPoints().contains(pointToAdd) &&
-                    !gameState.getNonCurrentPlayer().getPoints().contains(pointToAdd)) {
-                    System.out.println("=== SUGGESTION TROUVÉE ===");
+
+                if (!gameState.isOccupied(pointToAdd) &&
+                        !gameState.getCurrentPlayer().getPoints().contains(pointToAdd) &&
+                        !gameState.getNonCurrentPlayer().getPoints().contains(pointToAdd)) {
                     System.out.println("Ajout du point: " + pointToAdd);
                     return pointToAdd;
                 } else {
@@ -226,12 +217,11 @@ public class GameControl {
         }
         return null;
     }
-    
+
     private static void makeMove(GameState gameState, Player currentPlayer, Point point) {
         gameState.setPoint(point);
         currentPlayer.addToList(point);
         gameState.switchPlayer();
     }
-    
 
 }

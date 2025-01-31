@@ -112,7 +112,6 @@ public class PrimaryController {
             for (Map<Point, Boolean> map : lShapedGroups) {
                 boolean allTrue = map.values().stream().filter(Boolean::booleanValue).count() == 5;
                 if (allTrue) {
-                    System.out.println("Groupe en 'L' trouvé avec 5 points : " + map);
                     List<Point> points = new ArrayList<>(map.keySet());
     
                     // Dessiner les lignes pour connecter les points en "L"
@@ -133,7 +132,6 @@ public class PrimaryController {
                             if (aligned || adjacent) {
                                 gc.setStroke(player.getColor());
                                 gc.strokeLine(p1.getX(), p1.getY(), p2.getX(), p2.getY());
-                                System.out.println("Ligne dessinée entre " + p1 + " et " + p2);
                             }
                         }
                     }
@@ -151,7 +149,6 @@ public class PrimaryController {
     @FXML
     private void handleSuggestion() {
         // Logique pour le bouton Suggestion
-        System.out.println("Bouton Suggestion cliqué");
         GameControl.suggestion(gameState);
 
         // Redessiner la grille et les points après la suggestion
