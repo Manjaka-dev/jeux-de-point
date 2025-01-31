@@ -44,81 +44,6 @@ public class GameControl {
         return null;
     }
 
-    public static void suggestion(GameState gameState) {
-        Player currentPlayer = gameState.getCurrentPlayer();
-        List<Point> playerPoints = currentPlayer.getPoints();
-        int amplitude = 40;
-
-        System.out.println("\n=== DÉBUT SUGGESTION ===");
-        System.out.println("Joueur actuel: " + currentPlayer.getName());
-        System.out.println("Points du joueur: " + playerPoints);
-
-        // Get potential L-shaped groups directly from current player points
-        List<Map<Point, Boolean>> potentialGroups = findLShapedGroup(playerPoints, amplitude);
-        System.out.println("Nombre de groupes potentiels trouvés: " + potentialGroups.size());
-
-        // Find a group with exactly 4 true points
-        for (Map<Point, Boolean> group : potentialGroups) {
-            System.out.println("\nAnalyse d'un groupe: " + group);
-
-            // Count true points in the group
-            long trueCount = group.values().stream().filter(Boolean::booleanValue).count();
-            System.out.println("Nombre de points true dans le groupe: " + trueCount);
-
-            if (trueCount == 4) {
-                // Find the false point in the group
-                for (Map.Entry<Point, Boolean> entry : group.entrySet()) {
-                    if (!entry.getValue()) {
-                        Point pointToAdd = entry.getKey();
-                        System.out.println("Point trouvé à ajouter: " + pointToAdd);
-
-                        // Verify the point is available
-                        if (!gameState.isOccupied(pointToAdd)) {
-                            Player nonPlayer = gameState.getNonCurrentPlayer();
-                            if (!nonPlayer.getPoints().contains(pointToAdd)) {
-                                System.out.println("=== SUGGESTION TROUVÉE ===");
-                                System.out.println("Ajout du point: " + pointToAdd);
-
-                                // Add the point
-                                gameState.setPoint(pointToAdd);
-                                currentPlayer.addToList(pointToAdd);
-                                gameState.switchPlayer();
-                                return;
-                            }
-                        } else {
-                            System.out.println("Point déjà occupé, on continue la recherche");
-                        }
-                    }
-                }
-            }
-        }
-
-        System.out.println("\n=== AUCUN GROUPE AVEC 4 POINTS TROUVÉ ===");
-
-        // Fallback: place a point next to an existing point if possible
-        if (!playerPoints.isEmpty()) {
-            for (Point existingPoint : playerPoints) {
-                int[][] directions = { { 0, 1 }, { 1, 0 }, { 0, -1 }, { -1, 0 } };
-                for (int[] dir : directions) {
-                    Point adjacent = new Point(
-                            existingPoint.getX() + dir[0] * amplitude,
-                            existingPoint.getY() + dir[1] * amplitude);
-                    if (gameState.getIntersection().containsKey(adjacent) &&
-                            !gameState.isOccupied(adjacent)) {
-                        System.out.println("Placement adjacent au point: " + existingPoint);
-                        System.out.println("Point placé: " + adjacent);
-                        gameState.setPoint(adjacent);
-                        currentPlayer.addToList(adjacent);
-                        gameState.switchPlayer();
-                        return;
-                    }
-                }
-            }
-        }
-        System.out.println("Aucune suggestion possible");
-        System.out.println("=== FIN SUGGESTION ===\n");
-    }
-
     public static List<Map<Point, Boolean>> findLShapedGroup(List<Point> points, int amplitude) {
         List<Map<Point, Boolean>> lShapedGroups = new ArrayList<>();
 
@@ -214,5 +139,99 @@ public class GameControl {
 
         return lShapedGroups;
     }
+
+    public static void suggestion(GameState gameState) {
+        Player currentPlayer = gameState.getCurrentPlayer();
+        List<Point> playerPoints = currentPlayer.getPoints();
+        int amplitude = 40;
+    
+        System.out.println("\n=== DÉBUT SUGGESTION ===");
+        System.out.println("Joueur actuel: " + currentPlayer.getName());
+        System.out.println("Points du joueur: " + playerPoints);
+    
+        // Get potential L-shaped groups for current player
+        List<Map<Point, Boolean>> potentialGroups = findLShapedGroup(playerPoints, amplitude);
+        System.out.println("Nombre de groupes potentiels trouvés: " + potentialGroups.size());
+    
+        // First priority: Complete own L-shape if possible
+        for (Map<Point, Boolean> group : potentialGroups) {
+            System.out.println("\nAnalyse d'un groupe: " + group);
+            long trueCount = group.values().stream().filter(Boolean::booleanValue).count();
+            System.out.println("Nombre de points true dans le groupe: " + trueCount);
+    
+            if (trueCount == 4) {
+                Point pointToAdd = findAvailablePoint(group, gameState);
+                if (pointToAdd != null) {
+                    makeMove(gameState, currentPlayer, pointToAdd);
+                    return;
+                }
+            }
+        }
+    
+        // Second priority: Block opponent's L-shape
+        List<Map<Point, Boolean>> opponentPotentialGroups = findLShapedGroup(
+                gameState.getNonCurrentPlayer().getPoints(), amplitude);
+        
+        for (Map<Point, Boolean> group : opponentPotentialGroups) {
+            long trueCount = group.values().stream().filter(Boolean::booleanValue).count();
+            if (trueCount == 4) {
+                Point pointToAdd = findAvailablePoint(group, gameState);
+                if (pointToAdd != null) {
+                    makeMove(gameState, currentPlayer, pointToAdd);
+                    return;
+                }
+            }
+        }
+    
+        // Last resort: place adjacent to existing point
+        if (!playerPoints.isEmpty()) {
+            for (Point existingPoint : playerPoints) {
+                int[][] directions = {{0, 1}, {1, 0}, {0, -1}, {-1, 0}};
+                for (int[] dir : directions) {
+                    Point adjacent = new Point(
+                        existingPoint.getX() + dir[0] * amplitude,
+                        existingPoint.getY() + dir[1] * amplitude
+                    );
+                    if (gameState.getIntersection().containsKey(adjacent) &&
+                        !gameState.isOccupied(adjacent)) {
+                        System.out.println("Placement adjacent au point: " + existingPoint);
+                        System.out.println("Point placé: " + adjacent);
+                        makeMove(gameState, currentPlayer, adjacent);
+                        return;
+                    }
+                }
+            }
+        }
+    
+        System.out.println("Aucune suggestion possible");
+        System.out.println("=== FIN SUGGESTION ===\n");
+    }
+    
+    private static Point findAvailablePoint(Map<Point, Boolean> group, GameState gameState) {
+        for (Map.Entry<Point, Boolean> entry : group.entrySet()) {
+            if (!entry.getValue()) {
+                Point pointToAdd = entry.getKey();
+                System.out.println("Point trouvé à ajouter: " + pointToAdd);
+    
+                if (!gameState.isOccupied(pointToAdd) && 
+                    !gameState.getCurrentPlayer().getPoints().contains(pointToAdd) &&
+                    !gameState.getNonCurrentPlayer().getPoints().contains(pointToAdd)) {
+                    System.out.println("=== SUGGESTION TROUVÉE ===");
+                    System.out.println("Ajout du point: " + pointToAdd);
+                    return pointToAdd;
+                } else {
+                    System.out.println("Point déjà occupé, on continue la recherche");
+                }
+            }
+        }
+        return null;
+    }
+    
+    private static void makeMove(GameState gameState, Player currentPlayer, Point point) {
+        gameState.setPoint(point);
+        currentPlayer.addToList(point);
+        gameState.switchPlayer();
+    }
+    
 
 }
