@@ -68,4 +68,11 @@ public class GameState implements Serializable {
     public List<Player> getPlayers() {
         return players;
     }
+
+    public Player getNonCurrentPlayer() {
+        if (players == null || players.isEmpty()) {
+            throw new IllegalStateException("Players list is null or empty");
+        }
+        return players.get((turn + 1) % players.size());
+    }
 }
